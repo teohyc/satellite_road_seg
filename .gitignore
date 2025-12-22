@@ -1,3 +1,6 @@
 /.venv
 /MA_road_data
 /best_road_seg_unet.pth
+/__pycache__
+/infer_satellite_image.tiff
+/infer_predicted_road_mask.png
