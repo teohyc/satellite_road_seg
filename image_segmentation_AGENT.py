@@ -1,0 +1,212 @@
+from typing import TypedDict, Optional, Literal
+from langchain_ollama import ChatOllama
+from langgraph.graph import StateGraph, END
+from langchain_core.messages import HumanMessage
+from road_seg_infer import ConvBlock, UNet, road_seg_infer_main, load_image, predict_mask, visualize_result
+
+#for tree display purpoe only
+'''
+from PIL import Image
+from io import BytesIO'''
+
+#define local llm used
+router_llm = ChatOllama(
+    model="qwen2.5:0.5b",
+    temperature=0.0
+)
+
+explainer_llm = ChatOllama(
+    model="deepseek-r1:1.5b",
+    temperature=0.2
+)
+
+#agent state
+class RoadState(TypedDict):
+    user_query: str
+    image_path: Optional[str]
+
+    mask_path: Optional[str]
+    metrics: Optional[dict]
+    interpretation: Optional[dict]
+
+    intent: Optional[str]
+    final_response: Optional[str]
+
+#segmentation tool
+def run_road_segmentation(image_path: str) -> str:
+    return road_seg_infer_main(image_path)
+
+#analyzer tool
+def analyze_road_mask(mask_path: str) -> dict:
+    return {
+        "road_coverage": 0.12,
+        "avg_width_m": 6.3,
+        "junction_density": 0.004,
+        "num_components": 3,
+        "fragmentation": 0.18,
+        "confidence": 0.87
+    }
+
+#interpreter tool
+def interpret_metrics(metrics: dict) -> dict:
+    if metrics["road_coverage"] > 0.15:
+        area = "Urban"
+    elif metrics["road_coverage"] > 0.05:
+        area = "Suburban"
+    else:
+        area = "Rural"
+
+    return {
+        "area_type": area,
+        "confidence": metrics["confidence"]
+    }
+
+#router llm helper (START)
+def intent_router(state: RoadState) -> RoadState:
+    prompt = f"""
+You are an intent classifier.
+
+User query:
+"{state['user_query']}"
+
+System state:
+- image path: {state.get('image_path') is not None}
+- mask path: {state.get('mask_path') is not None}
+- metrics: {state.get('metrics') is not None}
+
+Rules:
+- If mask path is None, you MUST choose "segment" regardless of whatever content is in user query, HOWEVER if mask path is not "None", IGNORE this first rule
+- If metrics exist, you MAY choose "explain"
+- If mask exists but metrics do not, choose "analyze"
+- If the user query is a question statement without the word "generate", "segment", the option "segment" ssegemhall NEVER be chosen
+
+Choose ONE out of the THREE:
+1) segment
+2) analyze
+3) explain
+
+Respond with ONE WORD only.
+"""
+
+    intent = router_llm.invoke([HumanMessage(content=prompt)]).content.strip().lower()
+    print(intent)
+    #safety override
+    #if intent == "analyze" and not state.get("mask_path"):
+        #intent = "segment"
+
+    #if intent == "explain" and not state.get("metrics"):
+        #intent = "analyze" if state.get("mask_path") else "segment"
+
+    state["intent"] = intent
+    return state
+
+#defining nodes
+def segment_node(state: RoadState) -> RoadState:
+    state["mask_path"] = run_road_segmentation(state["image_path"])
+    return state
+
+
+def analyze_node(state: RoadState) -> RoadState:
+    if not state.get("mask_path"):
+        raise ValueError(
+            "Analyze node called without existing mask_path"
+        )
+
+    state["metrics"] = analyze_road_mask(state["mask_path"])
+    return state
+
+
+def interpret_node(state: RoadState) -> RoadState:
+    state["interpretation"] = interpret_metrics(state["metrics"])
+    return state
+
+def explain_node(state: RoadState) -> RoadState:
+    prompt = f"""
+You are a road-network analysis assistant.
+
+User question:
+"{state['user_query']}"
+
+Computed metrics:
+{state['metrics']}
+
+Derived interpretation:
+{state['interpretation']}
+
+Rules:
+- Prioritise in answering the user's query first
+- Base conclusions strictly on the metrics
+- Do NOT invent data
+- Explain clearly and concisely
+- Mention uncertainty if confidence is low
+"""
+
+    msg = HumanMessage(content=prompt)
+    response = explainer_llm.invoke([msg]).content
+
+    state["final_response"] = response
+    return state
+
+#router function
+def route_from_intent(state: RoadState) -> Literal["segment", "analyze", "explain"]:
+    return state["intent"]
+
+#building graph
+graph = StateGraph(RoadState)
+
+graph.add_node("intent_router", intent_router)
+graph.add_node("segment", segment_node)
+graph.add_node("analyze", analyze_node)
+graph.add_node("interpret", interpret_node)
+graph.add_node("explain", explain_node)
+
+graph.set_entry_point("intent_router")
+
+graph.add_conditional_edges(
+    "intent_router",
+    route_from_intent,
+    {
+        "segment": "segment",
+        "analyze": "analyze",
+        "explain": "explain",
+    },
+)
+
+graph.add_edge("segment", "analyze")
+graph.add_edge("analyze", "interpret")
+graph.add_edge("interpret", "explain")
+graph.add_edge("explain", END)
+
+road_agent = graph.compile()
+
+#initializing
+state = {
+    "user_query": "",
+    "image_path": "infer_satellite_image.tiff",
+
+    "mask_path": None,
+    "metrics": None,
+    "interpretation": None,
+
+    "intent": None,
+    "final_response": None,
+}
+
+#the tree diagram
+'''png = road_agent.get_graph().draw_mermaid_png()
+img = Image.open(BytesIO(png))
+img.show()
+img.save("road_seg_agent_diagram.png")'''
+
+
+while True:
+    user_input = input("\nUser: ")
+    if user_input.lower() in {"exit", "quit"}:
+        break
+
+    state["user_query"] = user_input
+    state = road_agent.invoke(state)
+
+    print("\nAssistant:")
+    print(state["final_response"])
+    

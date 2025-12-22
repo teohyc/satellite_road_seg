@@ -135,8 +135,7 @@ model.load_state_dict(torch.load("best_road_seg_unet.pth", map_location=device))
 model.to(device)
 model.eval()
 
-def main():
-    image_path = "infer_satellite_image.tiff"  # ANY satellite image
+def road_seg_infer_main(image_path = "infer_satellite_image.tiff"):
 
     original_image, image_tensor = load_image(image_path)
     predicted_mask = predict_mask(model, image_tensor)
