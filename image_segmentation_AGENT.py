@@ -15,7 +15,7 @@ from io import BytesIO'''
 
 #define local llm used
 router_llm = ChatOllama(
-    model="qwen2.5:0.5b",
+    model="qwen3:0.6b",
     temperature=0.0
 )
 
@@ -132,9 +132,9 @@ Rules:
 - If the user query is a question statement without the word "generate", "segment", the option "segment" shall NEVER be chosen
 
 Choose ONE out of the THREE:
-1) segment
-2) analyze
-3) explain
+ segment (Note: must be chosen no matter what when the System state shows that the mask path is None or empty or does not have a .png path)
+ analyze
+ explain
 
 Respond with ONE WORD only.
 """
