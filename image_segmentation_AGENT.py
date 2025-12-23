@@ -3,6 +3,10 @@ from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage
 from road_seg_infer import ConvBlock, UNet, road_seg_infer_main, load_image, predict_mask, visualize_result
+import numpy as np
+from skimage.morphology import skeletonize
+from scipy.ndimage import convolve, label
+import cv2
 
 #for tree display purpoe only
 '''
@@ -38,13 +42,60 @@ def run_road_segmentation(image_path: str) -> str:
 
 #analyzer tool
 def analyze_road_mask(mask_path: str) -> dict:
+    
+    #load mask
+    mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+    if mask is None:
+        raise ValueError(f'Failed to load mask from {mask_path}')
+
+    #binarize mask
+    _, mask_bin = cv2.threshold(mask, 0, 1, cv2.THRESH_BINARY)
+    mask_bin = mask_bin.astype(bool)
+
+    #road coverage
+    area_px = mask_bin.sum()
+    total_px = mask_bin.size
+    road_coverage = area_px / total_px
+
+    #skeletonize
+    skeleton = skeletonize(mask_bin)
+    length_px = skeleton.sum() 
+    length_m = length_px * 0.5
+
+    #average road width
+    area_m2 = area_px * (0.5 ** 2) #assume meter per pixel is 0.5
+    avg_width_m = area_m2 / (length_m + 1e-6)
+
+    #junction detection by convolution
+    kernel = np.array([[1,1,1],
+                       [1,0,1],
+                       [1,1,1]])
+    neighbors = convolve(skeleton.astype(int), kernel, mode="constant")
+    junctions = skeleton & (neighbors >= 3)
+    num_junctions = int(junctions.sum())
+    juncttion_density = num_junctions / (length_m + 1e-6)
+
+    #connected components
+    _, num_components = label(mask_bin) #find disconnected fragments
+
+    #fragmentation index
+    fragmentation = num_components / (area_px + 1e-6)
+    
+    #confidence
+    confidence = 1.0
+    if road_coverage < 0.01:
+        confidence *= 0.5
+    if num_components > 20:
+        confidence *= 0.6
+    if length_px < 50:
+        confidence *= 0.
     return {
-        "road_coverage": 0.12,
-        "avg_width_m": 6.3,
-        "junction_density": 0.004,
-        "num_components": 3,
-        "fragmentation": 0.18,
-        "confidence": 0.87
+        "road_coverage": float(road_coverage),
+        "avg_width_m": float(avg_width_m),
+        "junction_density": float(juncttion_density),
+        "num_components": int(num_components),
+        "fragmentation": float(fragmentation),
+        "confidence": float(confidence)
     }
 
 #interpreter tool
@@ -78,7 +129,7 @@ Rules:
 - If mask path is None, you MUST choose "segment" regardless of whatever content is in user query, HOWEVER if mask path is not "None", IGNORE this first rule
 - If metrics exist, you MAY choose "explain"
 - If mask exists but metrics do not, choose "analyze"
-- If the user query is a question statement without the word "generate", "segment", the option "segment" ssegemhall NEVER be chosen
+- If the user query is a question statement without the word "generate", "segment", the option "segment" shall NEVER be chosen
 
 Choose ONE out of the THREE:
 1) segment
@@ -89,14 +140,14 @@ Respond with ONE WORD only.
 """
 
     intent = router_llm.invoke([HumanMessage(content=prompt)]).content.strip().lower()
-    print(intent)
+    
     #safety override
     #if intent == "analyze" and not state.get("mask_path"):
         #intent = "segment"
 
     #if intent == "explain" and not state.get("metrics"):
         #intent = "analyze" if state.get("mask_path") else "segment"
-
+    print(f"Intent: {intent}")
     state["intent"] = intent
     return state
 
