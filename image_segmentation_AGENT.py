@@ -185,9 +185,9 @@ Derived interpretation:
 
 Rules:
 - Prioritise in answering the user's query first
-- Base conclusions strictly on the metrics
-- Do NOT invent data
-- Explain clearly and concisely
+- Base conclusions on the metrics
+- Do NOT invent data for the metrics
+- Explain clearly 
 - Mention uncertainty if confidence is low
 """
 
@@ -248,7 +248,7 @@ img = Image.open(BytesIO(png))
 img.show()
 img.save("road_seg_agent_diagram.png")'''
 
-
+'''
 while True:
     user_input = input("\nUser: ")
     if user_input.lower() in {"exit", "quit"}:
@@ -259,4 +259,5 @@ while True:
 
     print("\nAssistant:")
     print(state["final_response"])
+'''
     

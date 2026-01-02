@@ -54,7 +54,7 @@ with st.sidebar:
     if st.button("Reset conversation"):
         del st.session_state["road_state"]
         del st.session_state["chat_history"]
-        st.experimental_rerun()
+        st.rerun()
 
 #main layout
 left, right = st.columns([1.2, 1])
@@ -75,7 +75,7 @@ with left:
 
     if user_input:
         #add user message
-        st.session_state.chat_history.append("user", user_input)
+        st.session_state.chat_history.append(("user", user_input))
 
         #update agent state
         st.session_state.road_state["user_query"] = user_input
@@ -93,7 +93,7 @@ with left:
             ("assistant", assistant_reply)
         )
 
-        st.experimental_rerun()
+        st.rerun()
 
 #visual outputs
 with right:
