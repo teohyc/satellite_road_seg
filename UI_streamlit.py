@@ -11,10 +11,115 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("Agentic Road Segmentation Bot")
-st.caption(
-    "A conversational agent for road segmentation, analysis, "
-    "and decision reasoning using explicit system state."
+#css
+st.markdown(
+    """
+    <style>
+
+    /* ---------- Global ---------- */
+    .stApp {
+        background:
+            linear-gradient(180deg, #0B0F14 0%, #05070A 100%);
+        font-family: "Inter", "Segoe UI", sans-serif;
+    }
+
+    /* ---------- Sidebar ---------- */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(
+            180deg,
+            #0C1117 0%,
+            #0A0E13 100%
+        );
+        border-right: 1px solid rgba(118,185,0,0.25);
+    }
+
+    /* ---------- Headings ---------- */
+    h1, h2, h3 {
+        font-weight: 600;
+        letter-spacing: 0.4px;
+        color: #EAEAEA;
+    }
+
+    h2 {
+        border-bottom: 1px solid rgba(118,185,0,0.2);
+        padding-bottom: 6px;
+    }
+
+    /* ---------- Chat Messages ---------- */
+    .stChatMessage {
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin-bottom: 12px;
+        backdrop-filter: blur(6px);
+    }
+
+    .stChatMessage[data-testid="chat-message-user"] {
+        background: rgba(118,185,0,0.08);
+        border: 1px solid rgba(118,185,0,0.35);
+    }
+
+    .stChatMessage[data-testid="chat-message-assistant"] {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    /* ---------- Chat Input ---------- */
+    textarea {
+        border-radius: 14px !important;
+        border: 1px solid rgba(118,185,0,0.35) !important;
+        background-color: rgba(255,255,255,0.03) !important;
+    }
+
+    /* ---------- Buttons ---------- */
+    button {
+        border-radius: 12px !important;
+        background: rgba(118,185,0,0.08) !important;
+        border: 1px solid rgba(118,185,0,0.4) !important;
+        color: #EAEAEA !important;
+        font-weight: 500;
+    }
+
+    button:hover {
+        background: rgba(118,185,0,0.18) !important;
+    }
+
+    /* ---------- Metrics ---------- */
+    div[data-testid="metric-container"] {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(118,185,0,0.25);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 0 20px rgba(118,185,0,0.05);
+    }
+
+    /* ---------- Images ---------- */
+    img {
+        border-radius: 16px;
+        border: 1px solid rgba(255,255,255,0.12);
+        box-shadow: 0 0 25px rgba(0,0,0,0.5);
+    }
+
+    /* ---------- Divider ---------- */
+    hr {
+        border-top: 1px solid rgba(118,185,0,0.25);
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+#title block
+st.markdown(
+     """
+    ## 🟢 Agentic Satellite Road Segmentation System  
+    **Autonomous perception, segmentation, and terrain reasoning from aerial imagery**
+
+    <span style="color:rgba(118,185,0,0.85); font-size:0.9em;">
+    Powered by agentic reasoning with explicit state
+    </span>
+    """,
+    unsafe_allow_html=True
 )
 
 #initialise session
@@ -34,7 +139,12 @@ if "chat_history" not in st.session_state:
 
 #sidebar
 with st.sidebar:
-    st.header("Input Image")
+    st.header("Image Memory")
+
+    st.caption(
+        "Upload once. The agent will remember it "
+        "across the entire conversation."
+    )
 
     uploaded_file = st.file_uploader(
         "Drag & drop a satellite / aerial image",
@@ -55,6 +165,11 @@ with st.sidebar:
         del st.session_state["road_state"]
         del st.session_state["chat_history"]
         st.rerun()
+    
+    if st.session_state.road_state.get("image_path"):
+        st.success("Image embedded in agent state")
+    else:
+        st.warning("No image loaded")
 
 #main layout
 left, right = st.columns([1.2, 1])
@@ -112,7 +227,7 @@ with right:
         st.image(mask, caption="Road segmentation mask", use_container_width=True)
     
     if st.session_state.road_state.get("metrics"):
-        st.markdown("### Metrics")
+        st.markdown("### Quantitative Evaluation")
 
         m = st.session_state.road_state["metrics"]
 
