@@ -189,6 +189,7 @@ Rules:
 - Do NOT invent data for the metrics
 - Explain clearly 
 - Mention uncertainty if confidence is low
+- When answering user's query always used the computed metrics provided.
 """
 
     msg = HumanMessage(content=prompt)
