@@ -73,7 +73,7 @@ def analyze_road_mask(mask_path: str) -> dict:
     neighbors = convolve(skeleton.astype(int), kernel, mode="constant")
     junctions = skeleton & (neighbors >= 3)
     num_junctions = int(junctions.sum())
-    juncttion_density = num_junctions / (length_m + 1e-6)
+    junction_density = num_junctions / (length_m + 1e-6)
 
     #connected components
     _, num_components = label(mask_bin) #find disconnected fragments
@@ -88,11 +88,11 @@ def analyze_road_mask(mask_path: str) -> dict:
     if num_components > 20:
         confidence *= 0.6
     if length_px < 50:
-        confidence *= 0.
+        confidence *= 0.4
     return {
         "road_coverage": float(road_coverage),
         "avg_width_m": float(avg_width_m),
-        "junction_density": float(juncttion_density),
+        "junction_density": float(junction_density),
         "num_components": int(num_components),
         "fragmentation": float(fragmentation),
         "confidence": float(confidence)
@@ -117,8 +117,7 @@ def intent_router(state: RoadState) -> RoadState:
     prompt = f"""
 You are an intent classifier.
 
-User query:
-"{state['user_query']}"
+User query:"{state['user_query']}"
 
 System state:
 - image path: {state.get('image_path') is not None}
@@ -126,7 +125,7 @@ System state:
 - metrics: {state.get('metrics') is not None}
 
 Rules:
-- If mask path is None, you MUST choose "segment" regardless of whatever content is in user query, HOWEVER if mask path is not "None", IGNORE this first rule
+- If mask path is None, you MUST choose "segment" regardless of whatever content is in user query.
 - If metrics exist, you MAY choose "explain"
 - If mask exists but metrics do not, choose "analyze"
 - If the user query is a question statement without the word "generate", "segment", the option "segment" shall NEVER be chosen
