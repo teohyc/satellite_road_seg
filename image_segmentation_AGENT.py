@@ -7,20 +7,26 @@ import numpy as np
 from skimage.morphology import skeletonize
 from scipy.ndimage import convolve, label
 import cv2
+import os
 
 #for tree display purpoe only
 '''
 from PIL import Image
 from io import BytesIO'''
 
+
+
+ROUTER_MODEL_NAME = "qwen3:0.6b"
+EXPLAINER_MODEL_NAME = "deepseek-r1:1.5b"
+
 #define local llm used
 router_llm = ChatOllama(
-    model="qwen3:0.6b",
+    model=ROUTER_MODEL_NAME,
     temperature=0.0
 )
 
 explainer_llm = ChatOllama(
-    model="deepseek-r1:1.5b",
+    model=EXPLAINER_MODEL_NAME,
     temperature=0.2
 )
 
@@ -129,9 +135,11 @@ Rules:
 - If metrics exist, you MAY choose "explain"
 - If mask exists but metrics do not, choose "analyze"
 - If the user query is a question statement without the word "generate", "segment", the option "segment" shall NEVER be chosen
-
+- If user tells you to segment /analyse /renanalyse/ resegment/ process an image or a new image, choose "segment"
+- If user suggest an existence of a new image, choose "segment"
+ 
 Choose ONE out of the THREE:
- segment (Note: must be chosen no matter what when the System state shows that the mask path is None or empty or does not have a .png path)
+ segment (Note: must be chosen no matter what the user"s query is when the System state shows that the mask path is None or empty or does not have a .png path)
  analyze
  explain
 
@@ -141,11 +149,10 @@ Respond with ONE WORD only.
     intent = router_llm.invoke([HumanMessage(content=prompt)]).content.strip().lower()
     
     #safety override
-    #if intent == "analyze" and not state.get("mask_path"):
-        #intent = "segment"
+    '''if intent == "analyze" and not state.get("mask_path"):
+        intent = "segment"'''
 
-    #if intent == "explain" and not state.get("metrics"):
-        #intent = "analyze" if state.get("mask_path") else "segment"
+    
     print(f"Intent: {intent}")
     state["intent"] = intent
     return state
@@ -173,6 +180,7 @@ def interpret_node(state: RoadState) -> RoadState:
 def explain_node(state: RoadState) -> RoadState:
     prompt = f"""
 You are a road-network analysis assistant.
+Pretend you are able to analyse an aerial satellite image based on the "Computed metrics" and "Derived interpretation".
 
 User question:
 "{state['user_query']}"
@@ -261,4 +269,10 @@ while True:
     print("\nAssistant:")
     print(state["final_response"])
 '''
+
+__all__ = [
+    "road_agent",
+    "ROUTER_MODEL_NAME",
+    "EXPLAINER_MODEL_NAME"
+]
     

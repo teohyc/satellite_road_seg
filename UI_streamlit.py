@@ -3,7 +3,7 @@ import tempfile
 import os
 import cv2
 
-from image_segmentation_AGENT import road_agent
+from image_segmentation_AGENT import (road_agent, ROUTER_MODEL_NAME, EXPLAINER_MODEL_NAME)
 
 #page config
 st.set_page_config(
@@ -150,6 +150,33 @@ with st.sidebar:
         "Drag & drop a satellite / aerial image",
         type=["png", "jpg", "jpeg", "tiff"]
     )
+
+    st.markdown("---")
+    st.subheader("🧩 System Configuration")
+
+    st.markdown(
+        f"""
+        **Intent Router**  
+        <span style="color:#76B900;">{ROUTER_MODEL_NAME}</span>
+
+        **Explanation Model**  
+        <span style="color:#76B900;">{EXPLAINER_MODEL_NAME}</span>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    if st.session_state.road_state.get("intent"):
+        st.markdown(
+            f"""
+            <div style="margin-top:12px; font-size:0.85em;">
+            <b>Current Intent:</b>
+            <span style="color:#76B900;">
+            {st.session_state.road_state["intent"].upper()}
+            </span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
     if uploaded_file is not None:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".tiff") as tmp:
