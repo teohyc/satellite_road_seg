@@ -1,0 +1,59 @@
+from huggingface_hub import HfApi, create_repo, upload_folder
+import os
+
+# ================= CONFIG =================
+HF_USERNAME = "teohyc"   # change this
+REPO_NAME = "Satellite-Road-Segmentation-UNet"  
+
+TEMP_DIR = "hf_upload"
+
+#prepare folder
+os.makedirs(TEMP_DIR, exist_ok=True)
+
+#inference and model code
+import shutil
+shutil.copy("road_seg_infer.py", os.path.join(TEMP_DIR, "road_seg_infer.py"))
+
+#model weights
+shutil.copy("best_road_seg_unet.pth", os.path.join(TEMP_DIR, "best_road_seg_unet.pth"))
+
+
+#readme
+readme = f"""
+# Satellite Road Segmentation UNet
+
+Satellite Road Segmentation UNet is a deep learning model designed for segmenting roads from satellite imagery. It utilizes a U-Net architecture, which is widely used for image segmentation tasks due to its ability to capture both local and global features effectively.
+Training data from https://www.kaggle.com/datasets/balraj98/massachusetts-roads-dataset?resource=download-directory
+
+Full project file at https://github.com/teohyc/satellite_road_seg
+
+
+## Usage 
+
+```python
+from road_seg_infer import road_seg_infer_main
+
+road_seg_infer_main(image_path = "infer_satellite_image.tiff") #change this to your image path
+```"""
+
+with open(os.path.join(TEMP_DIR, "README.md"), "w") as f:
+    f.write(readme)
+
+#create repo and upload
+
+api = HfApi()
+
+repo_id = f"{HF_USERNAME}/{REPO_NAME}"
+
+create_repo(repo_id, exist_ok=True)
+
+print(f"Uploading to {repo_id}...")
+
+upload_folder(
+folder_path=TEMP_DIR,
+repo_id=repo_id,
+repo_type="model"
+)
+
+print("\nUpload complete!")
+print(f"https://huggingface.co/{repo_id}")
