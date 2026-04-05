@@ -31,7 +31,7 @@ Full project file at https://github.com/teohyc/satellite_road_seg
 ## Usage 
 
 ```python
-from road_seg_infer import road_seg_infer_main
+from road_seg_infer import ConvBlock, UNet, road_seg_infer_main, load_image, predict_mask, visualize_result
 
 road_seg_infer_main(image_path = "infer_satellite_image.tiff") #change this to your image path
 ```"""
